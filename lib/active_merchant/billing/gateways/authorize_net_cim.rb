@@ -346,12 +346,18 @@ module ActiveMerchant #:nodoc:
           when :void
             requires!(options[:transaction], :trans_id)
           when :refund
-            requires!(options[:transaction], :trans_id) &&
-              (
-                (options[:transaction][:customer_profile_id] && options[:transaction][:customer_payment_profile_id]) ||
-                options[:transaction][:credit_card_number_masked] ||
-                (options[:transaction][:bank_routing_number_masked] && options[:transaction][:bank_account_number_masked])
-              )
+            if options[:transaction].has_key?(:trans_id)
+              requires!(options[:transaction], :trans_id) &&
+                (
+                  (options[:transaction][:customer_profile_id] && options[:transaction][:customer_payment_profile_id]) ||
+                  options[:transaction][:credit_card_number_masked] ||
+                  (options[:transaction][:bank_routing_number_masked] && options[:transaction][:bank_account_number_masked])
+                )
+            else
+              # issuing a unlinked credit
+              requires!(options[:transaction], :customer_profile_id)
+              requires!(options[:transaction], :customer_payment_profile_id)
+            end
           when :prior_auth_capture
             requires!(options[:transaction], :amount, :trans_id)
           else
@@ -558,7 +564,7 @@ module ActiveMerchant #:nodoc:
                 tag_unless_blank(xml, 'bankRoutingNumberMasked', transaction[:bank_routing_number_masked])
                 tag_unless_blank(xml, 'bankAccountNumberMasked', transaction[:bank_account_number_masked])
                 add_order(xml, transaction.delete(:order)) if transaction[:order]
-                xml.tag!('transId', transaction[:trans_id])
+                tag_unless_blank(xml, 'transId', transaction[:trans_id])
               when :prior_auth_capture
                 xml.tag!('amount', transaction[:amount])
                 xml.tag!('transId', transaction[:trans_id])
